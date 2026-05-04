@@ -1,0 +1,6 @@
+node_modules/
+.env
+sample-images/*
+!sample-images/.gitkeep
+sample-xmls/*
+!sample-xmls/.gitkeep

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PRICE Stress Test</title>
+<style>
+:root {
+    --bg:      #0d1117;
+    --surface: #161b22;
+    --border:  #30363d;
+    --text:    #e6edf3;
+    --muted:   #8b949e;
+    --accent:  #58a6ff;
+    --success: #3fb950;
+    --error:   #f85149;
+    --warning: #d29922;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    overflow: hidden;
+}
+
+/* ── Header ── */
+header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0;
+    transition: background 0.3s;
+}
+#status-dot.running {
+    background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+#status-dot.stopping { background: var(--warning); }
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
+
+#status-text { font-size: 12px; color: var(--muted); }
+#status-text.running { color: var(--success); }
+
+header .spacer { flex: 1; }
+
+.btn {
+    padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border);
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: filter 0.15s, opacity 0.15s;
+}
+#start-btn { background: var(--success); color: #000; border-color: var(--success); }
+#start-btn:hover:not(:disabled) { filter: brightness(1.1); }
+#stop-btn  { background: var(--error);   color: #fff; border-color: var(--error);   }
+#stop-btn:hover:not(:disabled)  { filter: brightness(1.1); }
+.btn:disabled { opacity: 0.35; cursor: default; }
+
+/* ── Layout ── */
+#main {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    overflow: hidden;
+}
+
+/* ── Config panel ── */
+#config-panel {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: scroll;
+    padding: 14px;
+    min-height: 0;
+    user-select: none;
+}
+#config-panel.locked { pointer-events: none; opacity: 0.55; }
+
+#config-panel::-webkit-scrollbar,
+#log-feed::-webkit-scrollbar { width: 6px; }
+#config-panel::-webkit-scrollbar-track,
+#log-feed::-webkit-scrollbar-track { background: transparent; }
+#config-panel::-webkit-scrollbar-thumb,
+#log-feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#config-panel::-webkit-scrollbar-thumb:hover,
+#log-feed::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+#config-panel,
+#log-feed { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+.section-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.9px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 5px; margin-bottom: 10px; margin-top: 16px;
+}
+.section-title:first-child { margin-top: 0; }
+
+.field { margin-bottom: 9px; }
+.field > label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; }
+.field input[type="number"],
+.field input[type="text"] {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 13px;
+}
+.field input:focus { outline: none; border-color: var(--accent); }
+
+.checkbox-field {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 9px;
+}
+.checkbox-field label { color: var(--text); cursor: pointer; }
+
+input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px; height: 14px; flex-shrink: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s, border-color 0.15s;
+}
+input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 4px; top: 1px;
+    width: 4px; height: 8px;
+    border: 2px solid #000;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+}
+input[type="checkbox"]:hover:not(:checked) { border-color: var(--muted); }
+
+.loan-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.tx-group-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.8px; color: var(--accent); margin: 10px 0 6px;
+}
+
+.tx-row { margin-bottom: 5px; }
+.tx-check {
+    display: flex; align-items: center; gap: 7px; cursor: pointer;
+    padding: 3px 0;
+}
+.tx-params { padding-left: 20px; margin-top: 4px; }
+.tx-params input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 4px 7px; border-radius: 4px; font-size: 12px;
+}
+.tx-params input:focus { outline: none; border-color: var(--accent); }
+.tx-params input:disabled { opacity: 0.35; }
+
+/* ── Right content ── */
+#content {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 14px;
+    padding: 14px;
+    overflow: hidden;
+}
+
+/* ── Metrics grid ── */
+#metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+.metric-label {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.6px; color: var(--muted); margin-bottom: 5px;
+}
+.metric-value {
+    font-size: 26px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+}
+.metric-value.accent  { color: var(--accent); }
+.metric-value.success { color: var(--success); }
+.metric-value.error   { color: var(--error); }
+.metric-value.warning { color: var(--warning); }
+
+/* ── Log ── */
+#log-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+#log-header {
+    padding: 7px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+}
+#log-header span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+#clear-log {
+    background: none; border: none; color: var(--muted); font-size: 11px;
+    cursor: pointer; padding: 2px 6px; border-radius: 3px;
+}
+#clear-log:hover { color: var(--text); background: var(--border); }
+
+#log-feed {
+    overflow-y: auto; flex: 1;
+    font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+    font-size: 12px; padding: 8px 14px;
+}
+.log-entry { display: flex; gap: 10px; padding: 1px 0; line-height: 1.65; }
+.log-ts  { color: var(--muted); flex-shrink: 0; }
+.log-msg.ok      { color: var(--success); }
+.log-msg.error   { color: var(--error); }
+.log-msg.session { color: var(--accent); }
+.log-msg.warn    { color: var(--warning); }
+.log-msg.info    { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+    <div id="status-dot"></div>
+    <h1>PRICE Stress Test</h1>
+    <span id="status-text">Idle</span>
+    <span class="spacer"></span>
+    <button class="btn" id="start-btn">&#9654; Start</button>
+    <button class="btn" id="stop-btn" disabled>&#9632; Stop</button>
+</header>
+
+<div id="main">
+    <aside id="config-panel">
+
+        <div class="section-title">Test Parameters</div>
+
+        <div class="field">
+            <label>Sessions per minute</label>
+            <input type="number" id="sessionsPerMinute" value="5" min="1" max="600">
+        </div>
+        <div class="field">
+            <label>Duration in seconds (0 = manual stop)</label>
+            <input type="number" id="durationSec" value="60" min="0">
+        </div>
+        <div class="field">
+            <label>Transactions per session</label>
+            <input type="number" id="transactionsPerSession" value="3" min="1">
+        </div>
+        <div class="field">
+            <label>Delay between calls (ms)</label>
+            <input type="number" id="delayMs" value="500" min="0">
+        </div>
+        <div class="field">
+            <label>Max concurrent sessions (0 = unlimited)</label>
+            <input type="number" id="maxConcurrent" value="100" min="0">
+        </div>
+        <div class="field">
+            <label>Request timeout (ms)</label>
+            <input type="number" id="timeoutMs" value="15000" min="1000" step="1000">
+        </div>
+        <div class="checkbox-field">
+            <input type="checkbox" id="endSessions" checked>
+            <label for="endSessions">End sessions after transactions</label>
+        </div>
+
+        <div class="section-title">Loan Range</div>
+        <div class="loan-range">
+            <div class="field">
+                <label>Min</label>
+                <input type="number" id="loanMin" value="1" min="1">
+            </div>
+            <div class="field">
+                <label>Max</label>
+                <input type="number" id="loanMax" value="9999" min="1">
+            </div>
+        </div>
+
+        <div class="section-title">Transactions</div>
+        <div class="tx-group-label">GET</div>
+        <div id="get-tx-list"></div>
+        <div class="tx-group-label">SET</div>
+        <div id="set-tx-list"></div>
+
+    </aside>
+
+    <div id="content">
+        <div id="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Active Sessions</div>
+                <div class="metric-value accent" id="m-active">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Sessions Created</div>
+                <div class="metric-value" id="m-total-sess">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Completed Requests</div>
+                <div class="metric-value success" id="m-completed">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Failed Requests</div>
+                <div class="metric-value error" id="m-failed">0</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Error Rate</div>
+                <div class="metric-value" id="m-error-rate">0%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Throughput</div>
+                <div class="metric-value" id="m-throughput">0 req/s</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Response</div>
+                <div class="metric-value" id="m-avg-ms">0 ms</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Elapsed</div>
+                <div class="metric-value" id="m-elapsed">0s</div>
+            </div>
+        </div>
+
+        <div id="log-panel">
+            <div id="log-header">
+                <span>Event Log</span>
+                <button id="clear-log">Clear</button>
+            </div>
+            <div id="log-feed"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const GET_TRANSACTIONS = [
+    'get_loan', 'get_dates', 'get_deposit_accounts', 'get_loan_fees',
+    'get_incomes', 'get_liabilities', 'get_customers', 'get_properties',
+];
+
+const SET_TRANSACTIONS = [
+    { type: 'add_or_update_date',     param: { key: 'dateNames', placeholder: 'Date names, comma-separated (e.g. LockDate,RateLockExpDate)' } },
+    { type: 'put_virtual_data',       param: { key: 'names', placeholder: 'Virtual data names, comma-separated' } },
+    { type: 'set_extra_data',         param: { key: 'names', placeholder: 'Field names, comma-separated' } },
+    { type: 'set_loan_fees' },
+    { type: 'set_loan_data' },
+    { type: 'set_loan_servicing_data' },
+    { type: 'add_conversation_log' },
+    { type: 'set_adjustment' },
+    { type: 'upload_image_file' },
+    { type: 'import_from_file' },
+];
+
+// Build transaction checkboxes
+function buildTxRow(type, param) {
+    const row = document.createElement('div');
+    row.className = 'tx-row';
+    row.innerHTML = `
+        <label class="tx-check">
+            <input type="checkbox" data-tx="${type}"> ${type}
+        </label>
+        ${param ? `<div class="tx-params"><input type="text" id="param-${type}-${param.key}" placeholder="${param.placeholder}" disabled></div>` : ''}
+    `;
+    if (param) {
+        const cb  = row.querySelector('[data-tx]');
+        const inp = row.querySelector('input[type="text"]');
+        cb.addEventListener('change', () => { inp.disabled = !cb.checked; });
+    }
+    return row;
+}
+
+const getTxList  = document.getElementById('get-tx-list');
+const setTxList  = document.getElementById('set-tx-list');
+for (const t of GET_TRANSACTIONS) getTxList.appendChild(buildTxRow(t, null));
+for (const t of SET_TRANSACTIONS) setTxList.appendChild(buildTxRow(t.type, t.param || null));
+
+// Config reader
+function readConfig() {
+    const txConfig = {};
+
+    document.querySelectorAll('[data-tx]').forEach(cb => {
+        const txDef = SET_TRANSACTIONS.find(t => t.type === cb.dataset.tx);
+        const cfg   = { enabled: cb.checked };
+        if (txDef?.param) {
+            const inp = document.getElementById(`param-${txDef.type}-${txDef.param.key}`);
+            if (inp) cfg[txDef.param.key] = inp.value.trim();
+        }
+        txConfig[cb.dataset.tx] = cfg;
+    });
+
+    return {
+        sessionsPerMinute:     +document.getElementById('sessionsPerMinute').value,
+        durationSec:           +document.getElementById('durationSec').value,
+        transactionsPerSession:+document.getElementById('transactionsPerSession').value,
+        delayMs:               +document.getElementById('delayMs').value,
+        maxConcurrent:         +document.getElementById('maxConcurrent').value,
+        timeoutMs:             +document.getElementById('timeoutMs').value,
+        endSessions:           document.getElementById('endSessions').checked,
+        loanRange: {
+            min: +document.getElementById('loanMin').value,
+            max: +document.getElementById('loanMax').value,
+        },
+        transactions: txConfig,
+    };
+}
+
+// SSE
+let es = null;
+function connectSSE() {
+    if (es) { es.close(); es = null; }
+    es = new EventSource('/events');
+    es.addEventListener('metrics', e => updateMetrics(JSON.parse(e.data)));
+    es.addEventListener('log',     e => appendLog(JSON.parse(e.data)));
+    es.addEventListener('status',  e => setUiState(JSON.parse(e.data).state));
+    es.onerror = () => appendLog({ type: 'warn', msg: 'SSE reconnecting...' });
+}
+
+// Metrics
+function updateMetrics(m) {
+    document.getElementById('m-active').textContent       = m.activeSessions;
+    document.getElementById('m-total-sess').textContent   = m.totalSessions;
+    document.getElementById('m-completed').textContent    = m.completedRequests;
+    document.getElementById('m-failed').textContent       = m.failedRequests;
+    document.getElementById('m-throughput').textContent   = m.throughput + ' req/s';
+    document.getElementById('m-avg-ms').textContent       = m.avgResponseMs + ' ms';
+    document.getElementById('m-elapsed').textContent      = m.elapsedSec + 's';
+
+    const errEl = document.getElementById('m-error-rate');
+    errEl.textContent = m.errorRate.toFixed(1) + '%';
+    errEl.className   = 'metric-value ' + (m.errorRate > 10 ? 'error' : m.errorRate > 0 ? 'warning' : '');
+}
+
+// Log
+const MAX_LOG = 200;
+function appendLog({ type, msg }) {
+    const feed = document.getElementById('log-feed');
+    const ts   = new Date().toLocaleTimeString();
+    const div  = document.createElement('div');
+    div.className = 'log-entry';
+    div.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg ${esc(type)}">${esc(msg)}</span>`;
+    feed.prepend(div);
+    while (feed.children.length > MAX_LOG) feed.lastChild.remove();
+}
+
+function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// UI state
+function setUiState(state) {
+    const dot   = document.getElementById('status-dot');
+    const txt   = document.getElementById('status-text');
+    const start = document.getElementById('start-btn');
+    const stop  = document.getElementById('stop-btn');
+    const panel = document.getElementById('config-panel');
+
+    dot.className = state;
+    txt.className = state;
+    txt.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+
+    const running = state === 'running';
+    start.disabled = running;
+    stop.disabled  = !running;
+    panel.classList.toggle('locked', running);
+}
+
+// Buttons
+document.getElementById('start-btn').addEventListener('click', async () => {
+    const config = readConfig();
+    const enabled = Object.values(config.transactions).filter(t => t.enabled);
+    if (!enabled.length) { alert('Enable at least one transaction.'); return; }
+    if (config.loanRange.min > config.loanRange.max) { alert('Loan range: min must be ≤ max.'); return; }
+
+    const res = await fetch('/api/start', {
+        method:  'POST',
+        headers: { 'content-type': 'application/json' },
+        body:    JSON.stringify(config),
+    });
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert('Failed to start: ' + (body.error || res.statusText));
+    }
+});
+
+document.getElementById('stop-btn').addEventListener('click', () => {
+    fetch('/api/stop', { method: 'POST' });
+});
+
+document.getElementById('clear-log').addEventListener('click', () => {
+    document.getElementById('log-feed').innerHTML = '';
+});
+
+connectSSE();
+</script>
+</body>
+</html>
