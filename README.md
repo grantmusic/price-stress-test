@@ -10,7 +10,7 @@ Each test spawns PRICE sessions at a configurable rate. Each session logs in, ru
 
 - Node.js 18+
 - Google Chrome or Microsoft Edge
-- A PRICE API environment (UAT recommended)
+- A PRICE API environment (DEV/QA recommended)
 
 ## Setup
 
@@ -29,7 +29,7 @@ cp .env.example .env
 ```env
 PORT=3737
 
-PRICE_BASE_URL=https://price.uat.pclender.com
+PRICE_BASE_URL=https://price.dev.pclender.com
 PRICE_DATABASE=your_database
 PRICE_API_VERSION=your_version
 PRICE_APP_ID=your_app_id
