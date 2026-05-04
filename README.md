@@ -1,6 +1,6 @@
 # PRICE Stress Test
 
-A stress testing tool for the [PRICE](https://www.fiservmortgage.com/) API (Mortgage Director). Launches a browser in app mode with a live dashboard for configuring and running tests, with real-time metrics streamed back as sessions execute.
+A stress testing tool for the PRICE API (Mortgage Director). Launches a browser in app mode with a live dashboard for configuring and running tests, with real-time metrics streamed back as sessions execute.
 
 ## How It Works
 
