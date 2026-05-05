@@ -45,9 +45,9 @@ Create a `credentials.txt` file in the project root with one `username:password`
 
 ```
 # Lines starting with # and blank lines are ignored
-stester:Testing123!
-stester1:Testing123!
-stester2:Testing123!
+username1:password1
+username2:password2
+username3:password3
 ```
 
 Each session picks a random user from this list when logging in, simulating multiple distinct users hitting the API simultaneously. If the file is absent or empty, all sessions fall back to `PRICE_LOGIN_NAME` / `PRICE_PASSWORD` from `.env`. The file is gitignored so credentials are never committed.
