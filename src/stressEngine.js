@@ -111,9 +111,13 @@ export class StressEngine extends EventEmitter {
         const sessionNum  = ++m.totalSessions;
         m.activeSessions++;
 
-        this.emit('log', { type: 'session', msg: `Session #${sessionNum} started (loan ${loanNumber})` });
+        const creds = config.credentials?.length
+            ? config.credentials[randInt(0, config.credentials.length - 1)]
+            : null;
 
-        const client = createClient({ timeoutMs: config.timeoutMs ?? 15000 });
+        this.emit('log', { type: 'session', msg: `Session #${sessionNum} started (loan ${loanNumber}, user: ${creds?.loginName ?? 'env default'})` });
+
+        const client = createClient({ timeoutMs: config.timeoutMs ?? 15000, ...creds });
         try {
             await client.login();
 

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { StressEngine } from './src/stressEngine.js';
@@ -13,6 +14,30 @@ const sseClients = new Set();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ── Credentials ───────────────────────────────────────────────────────────────
+
+const CREDENTIALS_FILE = path.join(__dirname, 'credentials.txt');
+
+function loadCredentials() {
+    try {
+        const text = fs.readFileSync(CREDENTIALS_FILE, 'utf8');
+        return text
+            .split('\n')
+            .map(l => l.trim())
+            .filter(l => l && !l.startsWith('#'))
+            .map(l => {
+                const colon = l.indexOf(':');
+                if (colon === -1) return null;
+                return { loginName: l.slice(0, colon), password: l.slice(colon + 1) };
+            })
+            .filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+let credentials = loadCredentials();
 
 // ── SSE ──────────────────────────────────────────────────────────────────────
 
@@ -50,10 +75,19 @@ engine.on('stopped', () => {
 
 // ── API routes ────────────────────────────────────────────────────────────────
 
+app.get('/api/credentials', (_req, res) => {
+    res.json({ count: credentials.length });
+});
+
+app.post('/api/reload-credentials', (_req, res) => {
+    credentials = loadCredentials();
+    res.json({ count: credentials.length });
+});
+
 app.post('/api/start', (req, res) => {
     if (engine.isRunning) return res.status(409).json({ error: 'Test already running' });
     try {
-        engine.start(req.body);
+        engine.start({ ...req.body, credentials });
         res.json({ ok: true });
     } catch (err) {
         res.status(400).json({ error: err.message });
@@ -76,6 +110,7 @@ export function start() {
     return new Promise(resolve => {
         app.listen(port, () => {
             console.log(`[price-stress-test] http://localhost:${port}`);
+            console.log(`[price-stress-test] ${credentials.length} credential set(s) loaded`);
             resolve(port);
         });
     });

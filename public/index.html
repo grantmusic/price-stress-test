@@ -221,11 +221,11 @@ input[type="checkbox"]:hover:not(:checked) { border-color: var(--muted); }
     flex-shrink: 0;
 }
 #log-header span { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
-#clear-log {
+#clear-log, #reload-creds-btn {
     background: none; border: none; color: var(--muted); font-size: 11px;
     cursor: pointer; padding: 2px 6px; border-radius: 3px;
 }
-#clear-log:hover { color: var(--text); background: var(--border); }
+#clear-log:hover, #reload-creds-btn:hover { color: var(--text); background: var(--border); }
 
 #log-feed {
     overflow-y: auto; flex: 1;
@@ -254,6 +254,15 @@ input[type="checkbox"]:hover:not(:checked) { border-color: var(--muted); }
 
 <div id="main">
     <aside id="config-panel">
+
+        <div class="section-title">Credentials</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <div>
+                <div style="font-size:11px; color:var(--muted); margin-bottom:2px;">credentials.txt</div>
+                <div id="cred-status" style="font-size:12px; color:var(--muted);">Loading…</div>
+            </div>
+            <button id="reload-creds-btn">Reload</button>
+        </div>
 
         <div class="section-title">Test Parameters</div>
 
@@ -510,6 +519,32 @@ document.getElementById('clear-log').addEventListener('click', () => {
     document.getElementById('log-feed').innerHTML = '';
 });
 
+// Credentials
+async function fetchCredCount() {
+    try {
+        const res  = await fetch('/api/credentials');
+        const data = await res.json();
+        const el   = document.getElementById('cred-status');
+        if (data.count === 0) {
+            el.textContent = 'No credentials loaded — falling back to .env';
+            el.style.color = 'var(--warning)';
+        } else {
+            el.textContent = `${data.count} user${data.count !== 1 ? 's' : ''} loaded`;
+            el.style.color = 'var(--success)';
+        }
+    } catch {
+        document.getElementById('cred-status').textContent = 'Could not read credentials';
+    }
+}
+
+document.getElementById('reload-creds-btn').addEventListener('click', async () => {
+    const res  = await fetch('/api/reload-credentials', { method: 'POST' });
+    const data = await res.json();
+    appendLog({ type: 'info', msg: `Credentials reloaded — ${data.count} user${data.count !== 1 ? 's' : ''} loaded` });
+    fetchCredCount();
+});
+
+fetchCredCount();
 connectSSE();
 </script>
 </body>
