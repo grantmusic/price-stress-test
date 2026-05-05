@@ -39,12 +39,25 @@ PRICE_LOGIN_NAME=your_login_name
 PRICE_PASSWORD=your_password
 ```
 
-**3. Add sample files** *(only needed if using those transaction types)*
+**3. Add user credentials** *(optional — enables concurrent user simulation)*
+
+Create a `credentials.txt` file in the project root with one `username:password` pair per line:
+
+```
+# Lines starting with # and blank lines are ignored
+stester:Testing123!
+stester1:Testing123!
+stester2:Testing123!
+```
+
+Each session picks a random user from this list when logging in, simulating multiple distinct users hitting the API simultaneously. If the file is absent or empty, all sessions fall back to `PRICE_LOGIN_NAME` / `PRICE_PASSWORD` from `.env`. The file is gitignored so credentials are never committed.
+
+**4. Add sample files** *(only needed if using those transaction types)*
 
 - Drop image files (JPG, PNG, TIFF, PDF) into `sample-images/` for `upload_image_file`
 - Drop URLA MISMO 3.4 XML files into `sample-xmls/` for `import_from_file`
 
-**4. Start**
+**5. Start**
 ```bash
 npm start
 ```
@@ -52,6 +65,10 @@ npm start
 This starts the server and opens the dashboard automatically in a Chrome or Edge app window. If a browser isn't found at the standard install paths, set `CHROME_PATH` in your `.env` to point to the executable directly.
 
 ## Dashboard
+
+### Credentials
+
+Shows how many users are loaded from `credentials.txt` and whether the tool is falling back to `.env`. Use the **Reload** button to pick up changes to the file without restarting the server — useful for adding or removing users mid-session.
 
 ### Test Parameters
 
